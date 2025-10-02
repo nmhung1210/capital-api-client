@@ -276,111 +276,51 @@ try {
 }
 ```
 
-## Development
 
-### Building
 
-```bash
-npm run build
+## Advanced Usage
+
+### Authentication
+
+#### Basic Authentication
+
+```typescript
+// Create session with basic credentials
+const session = await api.createSession({
+  identifier: 'your-email@example.com',
+  password: 'your-api-password',
+  encryptedPassword: false // Default is false
+});
 ```
 
-### Testing
+#### Encrypted Authentication
 
-The library includes comprehensive testing with real Capital.com API endpoints:
-
-```bash
-# Run all tests (96 tests)
-npm test
-
-# Run with coverage (65.97% coverage)
-npm run test:coverage
-
-# Watch mode for development
-npm run test:watch
-
-# Run specific test categories
-npm test tests/btc-trading.real.test.ts          # Real BTC trading tests
-npm test tests/integration.real.test.ts         # Full API integration
-npm test tests/trading-operations.real.test.ts  # Trading operations
-npm test tests/websocket-edge-cases.real.test.ts # WebSocket edge cases
+```typescript
+// Create session with encrypted password
+const session = await api.createSessionWithEncryption(
+  'your-email@example.com',
+  'your-api-password'
+);
 ```
 
-#### Test Categories
+#### Session Management
 
-1. **Real BTC Trading Tests** (`btc-trading.real.test.ts`)
-   - ✅ Real position creation and closure (0.01 BTC minimum)
-   - ✅ Real working order creation and cancellation
-   - ✅ WebSocket price monitoring
-   - ✅ Complete cleanup verification
+```typescript
+// Get session details
+const details = await api.getSessionDetails();
 
-2. **Integration Tests** (`integration.real.test.ts`)
-   - ✅ Full API workflow testing
-   - ✅ Authentication and session management
-   - ✅ Market data retrieval and search
-   - ✅ Account information and preferences
-   - ✅ WebSocket connection and streaming
+// Switch to different account
+await api.switchAccount({ accountId: 'different-account-id' });
 
-3. **Trading Operations** (`trading-operations.real.test.ts`)
-   - ✅ Position management operations
-   - ✅ Working order operations
-   - ✅ Account and market data access
-   - ✅ Error handling scenarios
-
-4. **WebSocket Edge Cases** (`websocket-edge-cases.real.test.ts`)
-   - ✅ Connection lifecycle management
-   - ✅ Subscription and unsubscription
-   - ✅ Error handling and reconnection
-   - ✅ Message processing
-
-#### Test Safety
-
-- **Demo Environment**: All tests run against demo environment by default
-- **Position Creation**: Gated by `ENABLE_POSITION_CREATION=true`
-- **Order Creation**: Gated by `ENABLE_ORDER_CREATION=true`
-- **Size Limits**: Enforced via `MAX_POSITION_SIZE` and `TEST_POSITION_SIZE`
-- **Automatic Cleanup**: All created positions/orders are automatically closed
-- **Skip Logic**: Tests skip gracefully without proper credentials or flags
-
-### Package Verification
-
-```bash
-npm run pack:test
+// Logout
+await api.logout();
 ```
 
-## API Documentation
-
-For detailed API documentation, refer to the official Capital.com API documentation:
-https://open-api.capital.com
-
-## License
-
-ISC
-
-## Changelog
-
-### 1.1.0 (Latest)
-- **Comprehensive Real Endpoint Testing**: 96 tests with 65.97% coverage using live Capital.com API
-- **Real BTC Trading Tests**: Actual position creation, order management, and cleanup with minimum sizes
-- **Environment Configuration**: Complete .env-based configuration system matching .env.example
-- **Enhanced Safety Features**: Multiple protection layers for live trading
-- **WebSocket Real-time Testing**: Live price streaming and subscription management
-- **API Structure Fixes**: Updated types to match actual Capital.com API responses
-- **Position/Order Cleanup**: Automatic cleanup ensuring no test artifacts remain
-- **Flexible Test Configuration**: All test parameters configurable via environment variables
-
-### 1.0.0
-- Initial release
-- Complete Capital.com REST API coverage
-- WebSocket support for real-time data
-- TypeScript support with full type definitions
-- Multiple module format support (ES, CommonJS, UMD)
-- Basic unit tests
-
-## API Structure & Type Safety
+### API Structure & Type Safety
 
 This library provides accurate TypeScript types that match the actual Capital.com API responses:
 
-### Position Response Structure
+#### Position Response Structure
 ```typescript
 interface PositionsResponse {
   positions: PositionResponse[];  // Array of position containers
@@ -400,7 +340,7 @@ positions.positions.forEach(positionResponse => {
 });
 ```
 
-### Working Order Response Structure
+#### Working Order Response Structure
 ```typescript
 interface WorkingOrdersResponse {
   workingOrders: WorkingOrderResponse[];  // Array of order containers
@@ -418,6 +358,47 @@ orders.workingOrders.forEach(orderResponse => {
   const market = orderResponse.marketData;       // Access market data
   console.log(`${order.direction} ${order.orderSize} ${market.instrumentName} @ ${order.orderLevel}`);
 });
+```
+
+### Configuration Options
+
+```typescript
+interface CapitalAPIConfig {
+  baseUrl?: string;        // Custom base URL (optional)
+  apiKey?: string;         // Your API key from Capital.com
+  timeout?: number;        // Request timeout in milliseconds (default: 30000)
+}
+
+// Example usage with environment variables
+const api = new CapitalAPI({
+  baseUrl: process.env.USE_DEMO_ENVIRONMENT === 'true' 
+    ? process.env.CAPITAL_DEMO_API_BASE_URL 
+    : process.env.CAPITAL_API_BASE_URL,
+  apiKey: process.env.CAPITAL_API_KEY,
+  timeout: parseInt(process.env.API_TIMEOUT || '30000')
+});
+```
+
+#### Environment-Aware Configuration
+
+The library supports environment-based configuration for safe testing:
+
+```typescript
+// Automatically use demo environment when testing
+const testConfig = {
+  apiKey: process.env.CAPITAL_API_KEY,
+  baseUrl: process.env.USE_DEMO_ENVIRONMENT === 'true' 
+    ? process.env.CAPITAL_DEMO_API_BASE_URL 
+    : process.env.CAPITAL_API_BASE_URL,
+  enablePositionCreation: process.env.ENABLE_POSITION_CREATION === 'true',
+  positionSize: parseFloat(process.env.TEST_POSITION_SIZE || '0.01'),
+  maxPositionSize: parseFloat(process.env.MAX_POSITION_SIZE || '1.0')
+};
+
+// Safety check for live environment
+if (process.env.USE_DEMO_ENVIRONMENT !== 'true') {
+  console.warn('⚠️ WARNING: Using LIVE environment - real money at risk!');
+}
 ```
 
 ### Enhanced Error Handling
@@ -444,304 +425,8 @@ try {
     console.log('Position closed successfully');
   }
   
-} catch (error} catch (error) {
-  console.error('Trading error:', error.message);
-}
-```
-
-## Configuration Options
-
-```typescript
-interface CapitalAPIConfig {
-  baseUrl?: string;        // Custom base URL (optional)
-  apiKey?: string;         // Your API key from Capital.com
-  timeout?: number;        // Request timeout in milliseconds (default: 30000)
-}
-
-// Example usage with environment variables
-const api = new CapitalAPI({
-  baseUrl: process.env.USE_DEMO_ENVIRONMENT === 'true' 
-    ? process.env.CAPITAL_DEMO_API_BASE_URL 
-    : process.env.CAPITAL_API_BASE_URL,
-  apiKey: process.env.CAPITAL_API_KEY,
-  timeout: parseInt(process.env.API_TIMEOUT || '30000')
-});
-```
-
-### Environment-Aware Configuration
-
-The library supports environment-based configuration for safe testing:
-
-```typescript
-// Automatically use demo environment when testing
-const testConfig = {
-  apiKey: process.env.CAPITAL_API_KEY,
-  baseUrl: process.env.USE_DEMO_ENVIRONMENT === 'true' 
-    ? process.env.CAPITAL_DEMO_API_BASE_URL 
-    : process.env.CAPITAL_API_BASE_URL,
-  enablePositionCreation: process.env.ENABLE_POSITION_CREATION === 'true',
-  positionSize: parseFloat(process.env.TEST_POSITION_SIZE || '0.01'),
-  maxPositionSize: parseFloat(process.env.MAX_POSITION_SIZE || '1.0')
-};
-
-// Safety check for live environment
-if (process.env.USE_DEMO_ENVIRONMENT !== 'true') {
-  console.warn('⚠️ WARNING: Using LIVE environment - real money at risk!');
-}
-```
-
-## Authentication
-
-### Basic Authentication
-
-```typescript
-// Create session with basic credentials
-const session = await api.createSession({
-  identifier: 'your-email@example.com',
-  password: 'your-api-password',
-  encryptedPassword: false // Default is false
-});
-```
-
-### Encrypted Authentication
-
-```typescript
-// Create session with encrypted password
-const session = await api.createSessionWithEncryption(
-  'your-email@example.com',
-  'your-api-password'
-);
-```
-
-### Session Management
-
-```typescript
-// Get session details
-const details = await api.getSessionDetails();
-
-// Switch to different account
-await api.switchAccount({ accountId: 'different-account-id' });
-
-// Logout
-await api.logout();
-```
-
-## Trading Operations
-
-### Positions
-
-```typescript
-// Get all positions
-const positions = await api.getAllPositions();
-
-// Create a new position
-const newPosition = await api.createPosition({
-  epic: 'SILVER',
-  direction: 'BUY',
-  size: 1,
-  guaranteedStop: false
-});
-
-// Get specific position
-const position = await api.getPosition(dealId);
-
-// Update position
-await api.updatePosition(dealId, {
-  stopLevel: 20,
-  profitLevel: 30
-});
-
-// Close position
-await api.closePosition(dealId);
-```
-
-### Working Orders
-
-```typescript
-// Get all working orders
-const orders = await api.getAllWorkingOrders();
-
-// Create limit order
-const limitOrder = await api.createWorkingOrder({
-  epic: 'GOLD',
-  direction: 'BUY',
-  size: 1,
-  level: 1800,
-  type: 'LIMIT'
-});
-
-// Update working order
-await api.updateWorkingOrder(dealId, {
-  level: 1850,
-  goodTillDate: '2024-12-31T23:59:59'
-});
-
-// Delete working order
-await api.deleteWorkingOrder(dealId);
-```
-
-## Market Data
-
-### Market Information
-
-```typescript
-// Search for markets
-const markets = await api.getMarkets({
-  searchTerm: 'bitcoin'
-});
-
-// Get specific market details
-const marketDetails = await api.getMarketDetails('BITCOIN');
-
-// Get market navigation
-const navigation = await api.getMarketNavigation();
-```
-
-### Historical Prices
-
-```typescript
-// Get historical prices
-const prices = await api.getHistoricalPrices('SILVER', {
-  resolution: 'HOUR',
-  max: 100,
-  from: '2024-01-01T00:00:00',
-  to: '2024-01-02T00:00:00'
-});
-```
-
-### Client Sentiment
-
-```typescript
-// Get client sentiment for markets
-const sentiment = await api.getClientSentiment('SILVER,GOLD');
-
-// Get sentiment for specific market
-const silverSentiment = await api.getClientSentimentForMarket('SILVER');
-```
-
-## Account Management
-
-### Account Information
-
-```typescript
-// Get all accounts
-const accounts = await api.getAllAccounts();
-
-// Get account preferences
-const preferences = await api.getAccountPreferences();
-
-// Update preferences
-await api.updateAccountPreferences({
-  hedgingMode: false,
-  leverages: {
-    CURRENCIES: 10,
-    COMMODITIES: 5
-  }
-});
-```
-
-### Transaction History
-
-```typescript
-// Get activity history
-const activity = await api.getActivityHistory({
-  from: '2024-01-01T00:00:00',
-  to: '2024-01-31T23:59:59',
-  detailed: true
-});
-
-// Get transaction history
-const transactions = await api.getTransactionHistory({
-  lastPeriod: 86400, // Last 24 hours
-  type: 'TRADE'
-});
-```
-
-## Watchlists
-
-```typescript
-// Get all watchlists
-const watchlists = await api.getAllWatchlists();
-
-// Create new watchlist
-const newWatchlist = await api.createWatchlist({
-  name: 'My Commodities',
-  epics: ['GOLD', 'SILVER', 'OIL_CRUDE']
-});
-
-// Add market to watchlist
-await api.addMarketToWatchlist(watchlistId, {
-  epic: 'BITCOIN'
-});
-
-// Remove market from watchlist
-await api.removeMarketFromWatchlist(watchlistId, 'BITCOIN');
-
-// Delete watchlist
-await api.deleteWatchlist(watchlistId);
-```
-
-## WebSocket Streaming
-
-### Basic WebSocket Usage
-
-```typescript
-// Create WebSocket connection
-const ws = await api.connectWebSocket();
-
-// Listen for quote updates
-ws.on('quote', (quote) => {
-  console.log('Quote update:', quote);
-});
-
-// Listen for OHLC updates
-ws.on('ohlc', (ohlc) => {
-  console.log('OHLC update:', ohlc);
-});
-
-// Listen for connection events
-ws.on('connect', () => {
-  console.log('WebSocket connected');
-});
-
-ws.on('disconnect', () => {
-  console.log('WebSocket disconnected');
-});
-
-ws.on('error', (error) => {
-  console.error('WebSocket error:', error);
-});
-```
-
-### Market Data Subscriptions
-
-```typescript
-// Subscribe to market data
-ws.subscribeToMarketData(['SILVER', 'GOLD']);
-
-// Subscribe to OHLC data
-ws.subscribeToOHLCData(['BITCOIN'], ['MINUTE_5', 'HOUR'], 'classic');
-
-// Unsubscribe from market data
-ws.unsubscribeFromMarketData(['SILVER']);
-
-// Disconnect WebSocket
-api.disconnectWebSocket();
-```
-
-## Error Handling
-
-```typescript
-try {
-  const positions = await api.getAllPositions();
 } catch (error) {
-  if (error.response?.status === 401) {
-    console.log('Authentication failed - need to login again');
-  } else if (error.response?.status === 429) {
-    console.log('Rate limit exceeded - wait before retrying');
-  } else {
-    console.error('API error:', error.message);
-  }
+  console.error('Trading error:', error.message);
 }
 ```
 
@@ -767,61 +452,6 @@ The Capital.com API has the following rate limits:
 3. Go to Settings > API integrations > Generate new key
 4. Set a custom password for the API key
 5. Use the generated API key and custom password with this library
-
-## TypeScript Support
-
-This library is written in TypeScript and provides complete type definitions for all API responses and requests. Import types as needed:
-
-```typescript
-import { 
-  CreatePositionRequest, 
-  PositionResponse, 
-  MarketDetailsResponse 
-} from 'capital-api-client';
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-### Testing Requirements
-
-When contributing, ensure your changes maintain the high testing standards:
-
-- **Real Endpoint Testing**: All new features should include real API endpoint tests
-- **Environment Configuration**: Use environment variables for configurable test parameters  
-- **Safety First**: Include appropriate safety checks for live trading operations
-- **Cleanup Required**: Ensure all test artifacts (positions/orders) are properly cleaned up
-- **Coverage Maintenance**: Aim to maintain or improve the current 65.97% coverage
-
-### Test Development Guidelines
-
-1. **Use Environment Variables**: Configure test parameters via `.env` file
-2. **Demo Environment Default**: Always default to demo environment for safety
-3. **Explicit Creation Flags**: Gate real position/order creation behind environment flags
-4. **Size Limits**: Respect `MAX_POSITION_SIZE` and use minimal `TEST_POSITION_SIZE`
-5. **Proper Cleanup**: Always close positions and cancel orders in `afterAll` blocks
-6. **Error Handling**: Include comprehensive error handling and graceful degradation
-
-Example test structure:
-```typescript
-const testConfig = {
-  enablePositionCreation: process.env.ENABLE_POSITION_CREATION === 'true',
-  positionSize: Math.min(
-    parseFloat(process.env.TEST_POSITION_SIZE || '0.01'),
-    parseFloat(process.env.MAX_POSITION_SIZE || '1.0')
-  ),
-  // ... other config
-};
-
-// Always clean up after tests
-afterAll(async () => {
-  const positions = await api.getAllPositions();
-  for (const pos of positions.positions) {
-    await api.closePosition(pos.position.dealId);
-  }
-});
-```
 
 ## Development
 
@@ -877,6 +507,74 @@ The build process creates multiple bundle formats:
 - `dist/index.esm.js` - ES Module for modern bundlers
 - `dist/index.umd.js` - UMD bundle for browsers
 - `dist/index.d.ts` - TypeScript type definitions
+
+## API Documentation
+
+For detailed API documentation, refer to the official Capital.com API documentation:
+https://open-api.capital.com
+
+## Changelog
+
+### 1.1.0 (Latest)
+- **Comprehensive Real Endpoint Testing**: 96 tests with 65.97% coverage using live Capital.com API
+- **Real BTC Trading Tests**: Actual position creation, order management, and cleanup with minimum sizes
+- **Environment Configuration**: Complete .env-based configuration system matching .env.example
+- **Enhanced Safety Features**: Multiple protection layers for live trading
+- **WebSocket Real-time Testing**: Live price streaming and subscription management
+- **API Structure Fixes**: Updated types to match actual Capital.com API responses
+- **Position/Order Cleanup**: Automatic cleanup ensuring no test artifacts remain
+- **Flexible Test Configuration**: All test parameters configurable via environment variables
+
+### 1.0.0
+- Initial release
+- Complete Capital.com REST API coverage
+- WebSocket support for real-time data
+- TypeScript support with full type definitions
+- Multiple module format support (ES, CommonJS, UMD)
+- Basic unit tests
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Testing Requirements
+
+When contributing, ensure your changes maintain the high testing standards:
+
+- **Real Endpoint Testing**: All new features should include real API endpoint tests
+- **Environment Configuration**: Use environment variables for configurable test parameters  
+- **Safety First**: Include appropriate safety checks for live trading operations
+- **Cleanup Required**: Ensure all test artifacts (positions/orders) are properly cleaned up
+- **Coverage Maintenance**: Aim to maintain or improve the current 65.97% coverage
+
+### Test Development Guidelines
+
+1. **Use Environment Variables**: Configure test parameters via `.env` file
+2. **Demo Environment Default**: Always default to demo environment for safety
+3. **Explicit Creation Flags**: Gate real position/order creation behind environment flags
+4. **Size Limits**: Respect `MAX_POSITION_SIZE` and use minimal `TEST_POSITION_SIZE`
+5. **Proper Cleanup**: Always close positions and cancel orders in `afterAll` blocks
+6. **Error Handling**: Include comprehensive error handling and graceful degradation
+
+Example test structure:
+```typescript
+const testConfig = {
+  enablePositionCreation: process.env.ENABLE_POSITION_CREATION === 'true',
+  positionSize: Math.min(
+    parseFloat(process.env.TEST_POSITION_SIZE || '0.01'),
+    parseFloat(process.env.MAX_POSITION_SIZE || '1.0')
+  ),
+  // ... other config
+};
+
+// Always clean up after tests
+afterAll(async () => {
+  const positions = await api.getAllPositions();
+  for (const pos of positions.positions) {
+    await api.closePosition(pos.position.dealId);
+  }
+});
+```
 
 ## License
 
