@@ -140,7 +140,7 @@ export class CapitalAPI {
   private async get<T>(endpoint: string, params?: any): Promise<T> {
     try {
       // limit to 8 requests per second
-      while (this.reqCounter < 8) {
+      while (this.reqCounter > 8) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
       this.reqCounter++;
