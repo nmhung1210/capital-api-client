@@ -139,11 +139,12 @@ export class CapitalAPI {
   // Basic HTTP methods
   private async get<T>(endpoint: string, params?: any): Promise<T> {
     try {
-      // limit to 8 requests per second
-      while (this.reqCounter > 8) {
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
+      // limit to 10 requests per second
       this.reqCounter++;
+      if (this.reqCounter > 8) {
+        await new Promise(resolve => setTimeout(resolve, (this.reqCounter - 8) * 125)); // wait 100ms
+        return this.get<T>(endpoint, params);
+      }
       const response: AxiosResponse<T> = await this.client.get(endpoint, { params });
       // Jest may strip response properties, but response.data should be available
       if (response && response.data !== undefined) {
