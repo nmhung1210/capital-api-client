@@ -111,7 +111,7 @@ export interface Activity {
   date: string;
   dateUTC: string;
   description: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface ActivityHistoryResponse {
@@ -279,6 +279,11 @@ export interface WorkingOrdersResponse {
   workingOrders: WorkingOrderResponse[];
 }
 
+export interface AffectedDeal {
+  dealId: string;
+  status: string;
+}
+
 export interface DealConfirmation {
   date: string;
   status: string;
@@ -286,7 +291,7 @@ export interface DealConfirmation {
   epic: string;
   dealReference: string;
   dealId: string;
-  affectedDeals: any[];
+  affectedDeals: AffectedDeal[];
   level: number;
   size: number;
   direction: Direction;
@@ -304,6 +309,18 @@ export interface NavigationResponse {
   nodes: NavigationNode[];
 }
 
+export interface OpeningHours {
+  [key: string]: {
+    openTime: string;
+    closeTime: string;
+  }[];
+}
+
+export interface OvernightFee {
+  longPositionFee: number;
+  shortPositionFee: number;
+}
+
 export interface Instrument {
   epic: string;
   symbol: string;
@@ -316,18 +333,23 @@ export interface Instrument {
   currency: string;
   marginFactor: number;
   marginFactorUnit: string;
-  openingHours: any;
-  overnightFee: any;
+  openingHours: OpeningHours;
+  overnightFee: OvernightFee;
+}
+
+export interface DealingRuleValue {
+  unit: string;
+  value: number;
 }
 
 export interface DealingRules {
-  minStepDistance: any;
-  minDealSize: any;
-  maxDealSize: any;
-  minSizeIncrement: any;
-  minGuaranteedStopDistance: any;
-  minStopOrProfitDistance: any;
-  maxStopOrProfitDistance: any;
+  minStepDistance: DealingRuleValue;
+  minDealSize: DealingRuleValue;
+  maxDealSize: DealingRuleValue;
+  minSizeIncrement: DealingRuleValue;
+  minGuaranteedStopDistance: DealingRuleValue;
+  minStopOrProfitDistance: DealingRuleValue;
+  maxStopOrProfitDistance: DealingRuleValue;
   marketOrderPreference: string;
   trailingStopsPreference: string;
 }
@@ -357,13 +379,19 @@ export interface MarketsResponse {
   markets: Market[];
 }
 
+export interface PriceValue {
+  bid: number;
+  ask: number;
+  lastTraded: number | null;
+}
+
 export interface PriceSnapshot {
   snapshotTime: string;
   snapshotTimeUTC: string;
-  openPrice: any;
-  closePrice: any;
-  highPrice: any;
-  lowPrice: any;
+  openPrice: PriceValue;
+  closePrice: PriceValue;
+  highPrice: PriceValue;
+  lowPrice: PriceValue;
   lastTradedVolume: number;
 }
 
@@ -418,7 +446,7 @@ export interface WebSocketMessage {
   correlationId: string;
   cst: string;
   securityToken: string;
-  payload?: any;
+  payload?: Record<string, unknown>;
 }
 
 export interface MarketDataSubscription {
@@ -454,7 +482,7 @@ export interface OHLCData {
 }
 
 // Common Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   status?: string;
   error?: string;

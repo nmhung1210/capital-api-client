@@ -156,7 +156,7 @@ describe('Type Definitions', () => {
       expect(wsMessage.correlationId).toBe('123');
       expect(wsMessage.cst).toBe('test-cst');
       expect(wsMessage.securityToken).toBe('test-token');
-      expect(wsMessage.payload.epics).toEqual(['SILVER', 'GOLD']);
+      expect(wsMessage.payload?.epics).toEqual(['SILVER', 'GOLD']);
     });
 
     it('should define QuoteData interface', () => {
