@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import * as crypto from 'crypto-js';
 import { CapitalWebSocket, CapitalWebSocketConfig } from './CapitalWebSocket';
-import { 
+import {
   CapitalAPIConfig,
   SessionCredentials,
   EncryptionKeyResponse,
@@ -49,14 +49,15 @@ export class CapitalAPI {
   private cst?: string;
   private securityToken?: string;
   private webSocket?: CapitalWebSocket;
+  private reqCounter: number = 0;
 
   constructor(config: CapitalAPIConfig = {}) {
-    this.baseUrl = config.demoMode 
+    this.baseUrl = config.demoMode
       ? 'https://demo-api-capital.backend-capital.com'
       : config.baseUrl || 'https://api-capital.backend-capital.com';
-    
+
     this.apiKey = config.apiKey;
-    
+
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: config.timeout || 30000,
@@ -66,8 +67,13 @@ export class CapitalAPI {
       }
     });
 
+    this.reqCounter = 0;
+    setInterval(() => {
+      this.reqCounter = 0;
+    }, 1000); // Reset every 1 second
+
     // Add request interceptor to include authentication headers
-    this.client.interceptors.request.use((config) => {
+    this.client.interceptors.request.use((config: any) => {
       if (this.apiKey && !config.headers['X-CAP-API-KEY']) {
         config.headers['X-CAP-API-KEY'] = this.apiKey;
       }
@@ -82,8 +88,8 @@ export class CapitalAPI {
 
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      (response: any) => response,
+      (error: any) => {
         if (error.response?.status === 401) {
           // Clear authentication tokens on unauthorized
           this.clearSession();
@@ -123,7 +129,7 @@ export class CapitalAPI {
   private encryptPassword(encryptionKey: string, timestamp: number, password: string): string {
     const input = password + '|' + timestamp;
     const inputBase64 = crypto.enc.Base64.stringify(crypto.enc.Utf8.parse(input));
-    
+
     // Note: This is a simplified version. In a real implementation,
     // you would need to properly implement RSA encryption with the public key
     // For now, returning the base64 encoded input as placeholder
@@ -133,6 +139,11 @@ export class CapitalAPI {
   // Basic HTTP methods
   private async get<T>(endpoint: string, params?: any): Promise<T> {
     try {
+      // limit to 8 requests per second
+      while (this.reqCounter < 8) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      this.reqCounter++;
       const response: AxiosResponse<T> = await this.client.get(endpoint, { params });
       // Jest may strip response properties, but response.data should be available
       if (response && response.data !== undefined) {
@@ -176,7 +187,7 @@ export class CapitalAPI {
     if (!this.apiKey) {
       throw new Error('API key is required to get encryption key');
     }
-    
+
     return this.get<EncryptionKeyResponse>('/api/v1/session/encryptionKey');
   }
 
@@ -238,7 +249,7 @@ export class CapitalAPI {
   ): Promise<SessionResponse> {
     // Get encryption key first
     const encryptionData = await this.getEncryptionKey();
-    
+
     // Encrypt password
     const encryptedPassword = this.encryptPassword(
       encryptionData.encryptionKey,
@@ -436,13 +447,13 @@ export class CapitalAPI {
     if (!this.webSocket) {
       this.createWebSocketConnection();
     }
-    
+
     if (this.webSocket) {
       await this.webSocket.connect();
       this.webSocket.startAutoPing();
       return this.webSocket;
     }
-    
+
     throw new Error('Failed to create WebSocket connection');
   }
 
