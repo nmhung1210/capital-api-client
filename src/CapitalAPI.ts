@@ -49,7 +49,6 @@ export class CapitalAPI {
   private cst?: string;
   private securityToken?: string;
   private webSocket?: CapitalWebSocket;
-  private reqCounter: number = 0;
 
   constructor(config: CapitalAPIConfig = {}) {
     this.baseUrl = config.demoMode
@@ -66,11 +65,6 @@ export class CapitalAPI {
         'Accept': 'application/json'
       }
     });
-
-    this.reqCounter = 0;
-    setInterval(() => {
-      this.reqCounter = 0;
-    }, 1000); // Reset every 1 second
 
     // Add request interceptor to include authentication headers
     this.client.interceptors.request.use((config: any) => {
@@ -137,26 +131,58 @@ export class CapitalAPI {
   }
 
   // Basic HTTP methods
-  private async get<T>(endpoint: string, params?: any): Promise<T> {
-    try {
-      // limit to 10 requests per second
-      this.reqCounter++;
-      if (this.reqCounter > 8) {
-        await new Promise(resolve => setTimeout(resolve, (this.reqCounter - 8) * 125)); // wait 100ms
-        return this.get<T>(endpoint, params);
-      }
-      const response: AxiosResponse<T> = await this.client.get(endpoint, { params });
-      // Jest may strip response properties, but response.data should be available
-      if (response && response.data !== undefined) {
-        return response.data;
-      }
-      throw new Error('No response data received');
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        throw new Error('Authentication failed - check your credentials and API key');
-      }
-      throw error;
+  private requestQueue: Array<() => void> = [];
+  private processingQueue: boolean = false;
+
+  private async processQueue(): Promise<void> {
+    if (this.processingQueue || this.requestQueue.length === 0) {
+      return;
     }
+
+    this.processingQueue = true;
+
+    while (this.requestQueue.length > 0) {
+      const executeRequest = this.requestQueue.shift();
+      if (executeRequest) {
+        const startTime = Date.now();
+        await executeRequest();
+        // Only delay if we're executing at the rate limit (8 req/s)
+        if (this.requestQueue.length > 0) {
+          const elapsedTime = Date.now() - startTime;
+          const minDelay = 125; // 125ms minimum (8 req/s)
+          const remainingDelay = Math.max(0, minDelay - elapsedTime);
+          if (remainingDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, remainingDelay));
+          }
+        }
+      }
+    }
+
+    this.processingQueue = false;
+  }
+
+  private async get<T>(endpoint: string, params?: any): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const executeRequest = async () => {
+        try {
+          const response: AxiosResponse<T> = await this.client.get(endpoint, { params });
+          if (response && response.data !== undefined) {
+            resolve(response.data);
+          } else {
+            reject(new Error('No response data received'));
+          }
+        } catch (error: any) {
+          if (error.response?.status === 401) {
+            reject(new Error('Authentication failed - check your credentials and API key'));
+          } else {
+            reject(error);
+          }
+        }
+      };
+
+      this.requestQueue.push(executeRequest);
+      this.processQueue();
+    });
   }
 
   private async post<T>(endpoint: string, data?: any, headers?: any): Promise<T> {
